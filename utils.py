@@ -1,15 +1,20 @@
 import datetime
-import time
-import random
-import os
 import logging
+import os
+import random
+import time
+
 from dotenv import load_dotenv
 from selenium import webdriver
+from selenium.common.exceptions import (ElementClickInterceptedException,
+                                        ElementNotInteractableException,
+                                        NoSuchElementException,
+                                        TimeoutException)
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Configure logging
 logging.basicConfig(filename='booking_log.txt', level=logging.INFO,
@@ -26,15 +31,38 @@ target_dates = os.getenv('TARGET_DATES')
 is_debug = os.getenv('IS_DEBUG')
 
 def initialize_driver():
+    """
+    Initializes a Chrome WebDriver instance.
+
+    Returns:
+        webdriver.Chrome: A Chrome WebDriver instance.
+    """
     options = webdriver.ChromeOptions()
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
 def slow_type(element, text, delay=0.1):
+    """
+    Simulates slow typing into an input field.
+
+    Args:
+        element: The input field element.
+        text: The text to type.
+        delay: The delay between each character (in seconds).
+    """
     for char in text:
         element.send_keys(char)
         time.sleep(delay)
 
 def login(driver):
+    """
+    Logs in to the website.
+
+    Args:
+        driver: The WebDriver instance.
+
+    Returns:
+        bool: True if login is successful, False otherwise.
+    """
     driver.get(url)
     driver.maximize_window()
     try:
@@ -52,11 +80,21 @@ def login(driver):
         time.sleep(random.uniform(0.5, 2.0))
         next_page_element.click()
         return True
-    except Exception as e:
-        logging.error(f"Login failed: {e}")
+    except (NoSuchElementException, TimeoutException, ElementClickInterceptedException, ElementNotInteractableException) as e:
+        logging.error("Login failed: %s", e)
         return False
 
 def book_spot(driver, target_date):
+    """
+    Attempts to book a parking spot for the specified date.
+
+    Args:
+        driver: The WebDriver instance.
+        target_date: The target date in YYYY-MM-DD format.
+
+    Returns:
+        tuple: A tuple containing the booking result (success or failure), the status (claimed or released), and the spot number.
+    """
     try:
         password_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, 'password')))
         slow_type(password_input, password)
@@ -84,7 +122,7 @@ def book_spot(driver, target_date):
             modal = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "myModal")))
             button = modal.find_element(By.ID, "claim_SpotID")
             button.click()
-        except: # If parking is already alloted, release it.
+        except (NoSuchElementException, TimeoutException, ElementClickInterceptedException, ElementNotInteractableException) as e: # If parking is already alloted, release it.
             spot_element = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, f'a.SpotID_assigned.day_{day_of_week}.VehicleTypeId_0'))
             )
@@ -112,12 +150,13 @@ def book_spot(driver, target_date):
             else:
                 logging.debug("Gritter notice wrapper not found.")
                 return "failure", "Gritter notice wrapper not found."
-        except:
+        except (NoSuchElementException, TimeoutException, ElementClickInterceptedException, ElementNotInteractableException) as e:
             #send email to do manually
             logging.debug("Gritter notice wrapper not found or timeout occurred.")
             return "failure", "Gritter notice wrapper not found or timeout occurred."
         time.sleep(300) 
         driver.quit()
-    except Exception as e:
-        logging.error(f"Booking failed: {e}")
+    except (NoSuchElementException, TimeoutException, ElementClickInterceptedException, ElementNotInteractableException) as e:
+        logging.error("Booking failed: %s", e)
         return False
+

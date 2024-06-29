@@ -11,6 +11,12 @@ smtp_server = os.getenv("SMTP_SERVER")
 smtp_port = int(os.getenv("SMTP_PORT"))
 
 def send_email(body):
+    """
+    Sends an email with the provided body text.
+
+    Args:
+        body: The body of the email message.
+    """
     # Create the container email message
     msg = MIMEMultipart()
     msg['From'] = sender_email
@@ -28,5 +34,12 @@ def send_email(body):
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
             print("Email sent successfully")
-    except Exception as e:
+    except smtplib.SMTPException as e:
+        # Handle specific SMTP errors
         print(f"Failed to send email: {e}")
+    except ssl.SSLError as e:
+        # Handle SSL errors
+        print(f"SSL error: {e}")
+    except Exception as e:
+        # Catch any other unexpected exceptions
+        print(f"Unexpected error: {e}")
